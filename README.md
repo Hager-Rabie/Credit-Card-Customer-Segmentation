@@ -43,7 +43,7 @@ The dataset includes features related to:
 - Transaction frequency
 - Credit card usage behavior
 
-The dataset contains **8,950 customer records** and **17 behavioral features** after removing the customer ID.
+The dataset initially contains **8,950 customer records** and **17 behavioral features** after removing the customer ID.
 
 ### Important Features
 
@@ -110,15 +110,16 @@ A **Log Transformation** using `np.log1p()` was applied:
 
 ```python
 transformer = FunctionTransformer(np.log1p)
+
 Data = transformer.transform(data)
 ```
 
-This helps:
+This helps to:
 
 - Reduce right skewness.
 - Compress extreme values.
 - Reduce the influence of very large monetary values.
-- Make customer behavior differences easier to capture.
+- Make differences in customer behavior easier to capture.
 
 ### Log-Transformed Feature Distributions
 
@@ -130,6 +131,7 @@ After the log transformation, **StandardScaler** was applied:
 
 ```python
 scaler = StandardScaler()
+
 scaledData = scaler.fit_transform(Data)
 ```
 
@@ -140,7 +142,7 @@ Standardization transforms the features so that they have approximately:
 
 This is especially important for K-Means because the algorithm relies on **Euclidean distance**.
 
-![Scaled Feature Distributions](images/Scaled%20Feature%20Distributions.png)
+![Standardized Feature Distributions](images/Standardized%20Feature%20Distributions.png)
 
 ---
 
@@ -152,12 +154,13 @@ The dataset contains 17 features, which makes direct visualization difficult.
 
 ```python
 pca = PCA(n_components=2)
+
 pca_data = pca.fit_transform(scaledData)
 ```
 
 The first two principal components provide a 2D representation of the customer data.
 
-![PCA of Scaled Data](images/PCA%20of%20Scaled%20Data.png)
+![Customer Segments Visualization (PCA)](images/Customer%20Segments%20Visualization%20%28PCA%29.png)
 
 The PCA visualization shows that the customer data does not naturally form perfectly separated groups, which is consistent with the relatively low Silhouette Scores.
 
@@ -191,95 +194,113 @@ The relatively low Silhouette Score also indicates that the customer groups have
 
 ## 🤖 K-Means Clustering
 
-K-Means was applied using four clusters:
+K-Means was applied using **five clusters**:
 
 ```python
-kmeans = KMeans(
+customerSegmentationModel = KMeans(
     n_clusters=5,
-    init='k-means++',
     random_state=42,
     n_init=10
 )
 
-kmeans.fit(scaledData)
+customerSegmentationModel.fit(scaledData)
 ```
 
 The resulting cluster labels were added to the original dataset for further analysis.
+
+The five resulting clusters are labeled from **0 to 4**.
 
 ---
 
 ## 📊 Customer Segments
 
-The four clusters were analyzed based on their average behavioral characteristics.
+The five clusters were analyzed based on their average behavioral characteristics.
 
-### Cluster 0 — Transactors
+### Cluster 0 — Cash-Dependent Borrowers
 
+- Very high `CASH_ADVANCE`
+- Very low `PURCHASES`
 - High `BALANCE`
-- High `PURCHASES`
+- Moderate `PAYMENTS`
+- High cash advance activity
+
+These customers rely heavily on cash advances and maintain relatively high balances while making very few regular purchases.
+
+**Business interpretation:**
+
+Potentially higher-risk customers who may benefit from responsible credit management strategies and targeted financial products.
+
+---
+
+### Cluster 1 — Moderate Everyday Shoppers
+
+- Low `BALANCE`
+- Low `CASH_ADVANCE`
+- Moderate `PURCHASES`
+- Moderate `PAYMENTS`
+- Relatively low overall credit usage
+
+These customers primarily use their cards for regular purchases and show relatively limited cash advance activity.
+
+**Business interpretation:**
+
+Potential target for everyday spending rewards, loyalty programs, and moderate engagement campaigns.
+
+---
+
+### Cluster 2 — Big Spenders / Premium Shoppers
+
+- Highest `PURCHASES`
 - High `PAYMENTS`
-- High `CREDIT_LIMIT`
-- High number of purchase transactions
-- High one-off and installment purchases
-- Very high `PRC_FULL_PAYMENT`
+- Low `CASH_ADVANCE`
+- Moderate `BALANCE`
+- High purchase activity
 
-These customers are highly active and tend to pay their balances in full.
+These customers show the highest average purchase volume while making relatively little use of cash advances.
 
 **Business interpretation:**
-Potentially valuable customers with strong engagement and relatively healthy payment behavior.
+
+Potentially valuable customers who could be targeted with premium rewards, cashback programs, and personalized offers.
 
 ---
 
-### Cluster 1 — Revolvers
+### Cluster 3 — High-Activity / Heavy Credit Users
 
-- High `BALANCE`
-- Lower `PURCHASES`
+- Highest `BALANCE`
+- Highest `PAYMENTS`
 - High `CASH_ADVANCE`
-- High `CASH_ADVANCE_TRX`
-- Very low `PRC_FULL_PAYMENT`
+- High `PURCHASES`
+- Highest overall financial activity
 
-These customers tend to carry balances and make greater use of cash advances.
+These customers show high activity across multiple financial dimensions, including balances, payments, purchases, and cash advances.
 
 **Business interpretation:**
-Potentially profitable customers because they carry balances, but they may also represent a higher-risk segment.
+
+A highly active customer segment that may represent significant business value, but should also be monitored due to its high credit usage and cash advance activity.
 
 ---
 
-### Cluster 2 — Inactive / Low-Activity Customers
+### Cluster 4 — Low-Engagement / Budget Users
 
 - Lowest `BALANCE`
-- Lowest `PURCHASES`
-- Lowest `PAYMENTS`
-- Lower `CREDIT_LIMIT`
-- Low purchase transaction activity
-- Low overall card usage
+- Low `PURCHASES`
+- Low `PAYMENTS`
+- Very low `CASH_ADVANCE`
+- Low overall transaction activity
 
-These customers show relatively low engagement with their credit cards.
-
-**Business interpretation:**
-Potential target for customer engagement and activation campaigns.
-
----
-
-### Cluster 3 — Installment Buyers
-
-- Moderate to high `BALANCE`
-- Moderate to high `PURCHASES`
-- High `INSTALLMENTS_PURCHASES`
-- High `PURCHASES_INSTALLMENTS_FREQUENCY`
-- Lower `PRC_FULL_PAYMENT`
-
-These customers show a strong preference for installment-based purchases.
+These customers show relatively low engagement with their credit cards and limited overall financial activity.
 
 **Business interpretation:**
-Potential target for installment offers, financing products, and relevant promotional campaigns.
+
+Potential target for customer activation and engagement campaigns designed to encourage more card usage.
 
 ---
 
 ## 📈 Cluster Visualization
 
-The four clusters were visualized using the first two PCA components.
+The five clusters were visualized using the first two PCA components.
 
-![Customer Clusters](images/Customer%20Clusters%20%28k=4%29%20visualized%20with%20PCA.png)
+![Customer Segments Visualization (PCA)](images/Customer%20Segments%20Visualization%20%28PCA%29.png)
 
 The PCA plot shows some separation between the groups, but there is also considerable overlap.
 
@@ -289,14 +310,22 @@ This is expected because PCA is only a **2D projection of the original 17-dimens
 
 ## 🔎 Key Findings
 
-The analysis identified four meaningful customer segments:
+The analysis identified **five customer segments** with different behavioral patterns:
 
-| Cluster | Segment                     | Main Characteristics                                     |
-| ------- | --------------------------- | -------------------------------------------------------- |
-| 0       | **Transactors**             | High spending, high payments, high full-payment ratio    |
-| 1       | **Revolvers**               | High balance, high cash advances, low full-payment ratio |
-| 2       | **Inactive / Low-Activity** | Low spending, low balance, low card usage                |
-| 3       | **Installment Buyers**      | High installment purchases and installment frequency     |
+| Cluster | Segment                                | Main Characteristics                                      |
+| ------- | -------------------------------------- | --------------------------------------------------------- |
+| 0       | **Cash-Dependent Borrowers**           | High cash advances, high balance, low purchases           |
+| 1       | **Moderate Everyday Shoppers**         | Low balance, low cash advances, moderate purchases        |
+| 2       | **Big Spenders / Premium Shoppers**    | Highest purchases and strong payment activity             |
+| 3       | **High-Activity / Heavy Credit Users** | Highest balance, payments, and overall financial activity |
+| 4       | **Low-Engagement / Budget Users**      | Lowest balance and low overall activity                   |
+
+### Additional Findings
+
+- **Highest-Spending Customers:** Cluster 2
+- **Highest Cash-Advance Usage:** Cluster 3
+- **Most Active Customers:** Cluster 3
+- **Lowest-Engagement Customers:** Cluster 4
 
 These segments demonstrate how unsupervised learning can reveal different behavioral patterns without requiring predefined customer labels.
 
@@ -307,10 +336,11 @@ These segments demonstrate how unsupervised learning can reveal different behavi
 The identified segments could be used to support:
 
 - **Targeted Marketing** — Create different offers for different customer groups.
-- **Customer Engagement** — Encourage inactive customers to use their cards more.
-- **Installment Product Development** — Design offers for customers who frequently use installments.
+- **Customer Engagement** — Encourage low-engagement customers to use their cards more.
+- **Premium Customer Strategies** — Provide rewards and personalized offers to high-spending customers.
+- **Installment and Credit Products** — Develop products based on customer spending and credit usage patterns.
 - **Risk Assessment** — Monitor customers with high balances and cash advance activity.
-- **Customer Retention** — Develop personalized strategies for highly valuable customers.
+- **Customer Retention** — Develop personalized strategies for highly active and valuable customers.
 
 ---
 
@@ -339,6 +369,7 @@ The identified segments could be used to support:
 
 ```text
 Credit-Card-Customer-Segmentation/
+
 │
 ├── data/
 │   └── CC GENERAL.csv
@@ -350,7 +381,7 @@ Credit-Card-Customer-Segmentation/
 │   ├── PCA of Scaled Data.png
 │   ├── Elbow Method.png
 │   ├── Silhouette Score.png
-│   └── Customer Clusters (k=5) visualized with PCA.png
+│   └── Customer Segments Visualization (PCA).png
 │
 ├── notebook/
 │   └── credit_card_customer_segmentation.ipynb
@@ -367,19 +398,17 @@ Credit-Card-Customer-Segmentation/
 ### 1. Clone the repository
 
 ```bash
-git clone <https://github.com/Hager-Rabie/Credit-Card-Customer-Segmentationl>
+git clone https://github.com/Hager-Rabie/Credit-Card-Customer-Segmentation.git
 cd Credit-Card-Customer-Segmentation
 ```
 
-````
-
-### 4. Install the required libraries
+### 2. Install the required libraries
 
 ```bash
 pip install -r requirements.txt
-````
+```
 
-### 5. Run the Jupyter Notebook
+### 3. Run the Jupyter Notebook
 
 ```bash
 jupyter notebook
@@ -395,9 +424,9 @@ This project demonstrates a complete **K-Means customer segmentation workflow**,
 
 The preprocessing steps were particularly important because the dataset contains highly skewed financial features. Applying **Log Transformation** and **StandardScaler** helped make the data more suitable for distance-based clustering.
 
-Using K-Means with `k = 4` resulted in four interpretable customer segments:
+Using K-Means with `k = 5` resulted in five interpretable customer segments:
 
-**Transactors, Revolvers, Inactive / Low-Activity Customers, and Installment Buyers.**
+**Cash-Dependent Borrowers, Moderate Everyday Shoppers, Big Spenders / Premium Shoppers, High-Activity / Heavy Credit Users, and Low-Engagement / Budget Users.**
 
 Although the relatively low Silhouette Score indicates that the clusters are not perfectly separated, the resulting segments still provide useful behavioral insights that can support customer-focused business strategies.
 
